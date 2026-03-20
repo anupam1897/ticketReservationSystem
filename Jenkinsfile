@@ -12,7 +12,13 @@ pipeline {
         stage('Checkout') {
             steps {
                 echo "Cloning repository..."
-                git 'https://github.com/anupam1897/ticketReservationSystem.git'
+                checkout([$class: 'GitSCM', 
+                    branches: [[name: '*/main']], // Explicitly set to 'main' or 'master'
+                    doGenerateSubmoduleConfigurations: false, 
+                    extensions: [], 
+                    submoduleCfg: [], 
+                    userRemoteConfigs: [[url: 'https://github.com/anupam1897/ticketReservationSystem.git']]
+                ])
             }
         }
 
