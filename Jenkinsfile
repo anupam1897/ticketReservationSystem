@@ -1,80 +1,61 @@
 pipeline {
-    agent {
-        label 'wsl-agent'   // Make sure your Jenkins node has this label
+    agent any 
+
+    tools {
+        // Names must match exactly what you set in Manage Jenkins -> Tools
+        jdk 'Java21'
+        maven 'Maven3.9'
     }
 
     environment {
-        APP_NAME = "ticket_reservation_system"
+        APP_NAME = "ticket-reservation-system"
+        DOCKER_IMAGE = "anupam1897/${APP_NAME}"
+        // Credentials ID for your Docker Hub/Registry if pushing
+        // DOCKER_CREDS = 'docker-hub-credentials' 
     }
 
     stages {
-
         stage('Checkout') {
             steps {
-                echo "Cloning repository..."
-                checkout([$class: 'GitSCM', 
-                    branches: [[name: '*/main']], // Explicitly set to 'main' or 'master'
-                    doGenerateSubmoduleConfigurations: false, 
-                    extensions: [], 
-                    submoduleCfg: [], 
-                    userRemoteConfigs: [[url: 'https://github.com/anupam1897/ticketReservationSystem.git']]
-                ])
+                echo "Cloning repository from GitHub..."
+                // Ensure branch matches your repo (main vs master)
+                git branch: 'main', url: 'https://github.com/anupam1897/ticketReservationSystem.git'
             }
         }
 
-        stage('Build') {
+        stage('Build & Unit Test') {
             steps {
-                echo "Building application..."
-                sh '''
-                    echo "Running on WSL:"
-                    uname -a
-                    mkdir -p build
-                    echo "Build complete" > build/output.txt
-                '''
+                echo "Compiling and Testing with JDK 21..."
+                // 'bat' is required for Windows Command Prompt
+                bat 'mvn clean package'
             }
         }
 
-        stage('Test') {
+        stage('Dockerize') {
             steps {
-                echo "Running tests..."
-                sh '''
-                    echo "Executing test cases..."
-                    sleep 2
-                    echo "All tests passed!"
-                '''
+                echo "Building Docker Image..."
+                // Building the image locally using Windows Docker Desktop
+                bat "docker build -t ${DOCKER_IMAGE}:latest ."
             }
         }
 
-        stage('Package') {
+        stage('Verify Deployment') {
             steps {
-                echo "Packaging application..."
-                sh '''
-                    tar -czf ${APP_NAME}.tar.gz build/
-                '''
-            }
-        }
-
-        stage('Deploy') {
-            steps {
-                echo "Deploying application..."
-                sh '''
-                    echo "Simulating deployment..."
-                    mkdir -p /tmp/deploy
-                    cp ${APP_NAME}.tar.gz /tmp/deploy/
-                '''
+                echo "Verifying Docker Image..."
+                bat "docker images | findstr ${APP_NAME}"
             }
         }
     }
 
     post {
         success {
-            echo "Pipeline executed successfully!"
+            echo "Successfully built ${APP_NAME}!"
         }
         failure {
-            echo "Pipeline failed!"
+            echo "Pipeline failed. Check the console output above."
         }
         always {
-            echo "Cleaning up..."
+            echo "Cleaning up workspace..."
             cleanWs()
         }
     }
