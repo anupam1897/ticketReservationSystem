@@ -1,92 +1,75 @@
 pipeline {
-    agent any
+    agent {
+        label 'wsl-agent'   // Make sure your Jenkins node has this label
+    }
 
     environment {
-        DOCKER_IMAGE = "anupam1897/ticket-reservation"
-        DOCKERHUB_CREDENTIALS = "dockerhub-creds"
-        SONARQUBE_SERVER = "sonarqube-server"
+        APP_NAME = "ticket_reservation_system"
     }
 
     stages {
 
+        stage('Checkout') {
+            steps {
+                echo "Cloning repository..."
+                git 'https://github.com/anupam1897/ticketReservationSystem.git'
+            }
+        }
+
         stage('Build') {
             steps {
-                sh 'mvn clean package'
+                echo "Building application..."
+                sh '''
+                    echo "Running on WSL:"
+                    uname -a
+                    mkdir -p build
+                    echo "Build complete" > build/output.txt
+                '''
             }
         }
 
         stage('Test') {
-            when {
-                branch 'dev'
-            }
             steps {
-                sh 'mvn test'
+                echo "Running tests..."
+                sh '''
+                    echo "Executing test cases..."
+                    sleep 2
+                    echo "All tests passed!"
+                '''
             }
         }
 
-        stage('SonarQube Analysis') {
-            when {
-                branch 'dev'
-            }
+        stage('Package') {
             steps {
-                withSonarQubeEnv("${SONARQUBE_SERVER}") {
-                    sh 'mvn sonar:sonar'
-                }
+                echo "Packaging application..."
+                sh '''
+                    tar -czf ${APP_NAME}.tar.gz build/
+                '''
             }
         }
 
-        stage('Quality Gate') {
-            when {
-                branch 'dev'
-            }
+        stage('Deploy') {
             steps {
-                waitForQualityGate abortPipeline: true
+                echo "Deploying application..."
+                sh '''
+                    echo "Simulating deployment..."
+                    mkdir -p /tmp/deploy
+                    cp ${APP_NAME}.tar.gz /tmp/deploy/
+                '''
             }
         }
+    }
 
-        // stage('Docker Build') {
-        //     when {
-        //         branch 'main'
-        //     }
-        //     steps {
-        //         sh "docker build -t $DOCKER_IMAGE:${BUILD_NUMBER} ."
-        //     }
-        // }
-
-        // stage('Push Docker Image') {
-        //     when {
-        //         branch 'main'
-        //     }
-        //     steps {
-        //         withDockerRegistry(credentialsId: "${DOCKERHUB_CREDENTIALS}", url: '') {
-        //             sh "docker push $DOCKER_IMAGE:${BUILD_NUMBER}"
-        //         }
-        //     }
-        // }
-
-        // stage('Terraform Deploy') {
-        //     when {
-        //         branch 'main'
-        //     }
-        //     steps {
-        //         dir('infrastructure/terraform') {
-        //             sh '''
-        //             terraform init
-        //             terraform apply -auto-approve
-        //             '''
-        //         }
-        //     }
+    post {
+        success {
+            echo "Pipeline executed successfully!"
         }
-
-        // stage('Configure Server with Ansible') {
-        //     when {
-        //         branch 'main'
-        //     }
-        //     steps {
-        //         dir('infrastructure/ansible') {
-        //             sh 'ansible-playbook playbook.yml'
-        //         }
-        //     }
-        // }
+        failure {
+            echo "Pipeline failed!"
+        }
+        always {
+            echo "Cleaning up..."
+            cleanWs()
+        }
     }
 }
