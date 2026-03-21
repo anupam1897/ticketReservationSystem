@@ -1,19 +1,6 @@
 pipeline {
     agent any 
 
-    // tools {
-    //     // Names must match exactly what you set in Manage Jenkins -> Tools
-    //     jdk 'Java21'
-    //     maven 'Maven3.9'
-    // }
-
-    // environment {
-    //     APP_NAME = "ticket-reservation-system"
-    //     DOCKER_IMAGE = "anupam1897/${APP_NAME}"
-    //     // Credentials ID for your Docker Hub/Registry if pushing
-    //     // DOCKER_CREDS = 'docker-hub-credentials' 
-    // }
-
     stages {
         stage('Checkout') {
             steps {
@@ -27,7 +14,7 @@ pipeline {
             steps {
                 echo 'Compiling and Testing with JDK 21 in WSL...'
                 // Changed 'bat' to 'sh' for Linux compatibility
-                sh 'mvn clean compile'
+                sh 'mvn compile'
             }
         }
     }
