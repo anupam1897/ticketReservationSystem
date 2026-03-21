@@ -1,10 +1,30 @@
-/target/
+# --- Compiled/Build Outputs ---
+target/
 *.class
-.shared/
+*.jar
+*.war
+*.ear
+
+# --- IDE Specifics ---
+.idea/
+*.iml
 .project
 .classpath
 .settings/
-.idea/
-*.iml
-.vscode/
+.nbproject/
+build.xml
+
+# --- OS Specifics ---
+.DS_Store
+Thumbs.db
+*.swp
+
+# --- Logs & Temp ---
 *.log
+/temp/
+/tmp/
+
+# --- Sensitive Info ---
+.env
+*.key
+*.jks
