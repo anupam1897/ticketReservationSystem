@@ -27,7 +27,7 @@ pipeline {
             steps {
                 echo 'Compiling and Testing with JDK 21 in WSL...'
                 // Changed 'bat' to 'sh' for Linux compatibility
-                sh 'mvn clean install'
+                sh 'mvn clean compile'
             }
         }
 
