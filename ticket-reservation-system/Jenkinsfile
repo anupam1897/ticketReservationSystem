@@ -30,21 +30,6 @@ pipeline {
                 sh 'mvn clean compile'
             }
         }
-
-        stage('Dockerize') {
-            steps {
-                echo 'Building Docker Image...'
-                // Ensure your WSL user has docker permissions (sudo usermod -aG docker jenkins)
-                sh 'docker build -t ticket-system:latest .'
-            }
-        }
-
-        stage('Verify Deployment') {
-            steps {
-                echo 'Verifying deployment...'
-                sh 'docker images | grep ticket-system'
-            }
-        }
     }
 
     post {
