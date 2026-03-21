@@ -1,3 +1,4 @@
+package com.anupam1897;
 public class Payment {
     private double amount;
 

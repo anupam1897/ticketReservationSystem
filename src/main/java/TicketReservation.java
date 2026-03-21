@@ -1,4 +1,7 @@
-public class Main {
+import com.anupam1897.*;
+
+
+public class TicketReservation {
     public static void main(String[] args) {
 
         // Setup database and add trains
