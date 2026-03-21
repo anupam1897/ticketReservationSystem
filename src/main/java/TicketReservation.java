@@ -23,7 +23,7 @@ public class TicketReservation {
                                    passenger, selectedTrain,
                                    "Chennai", "Mumbai", 850.0);
 
-        // View schedule after booking
+        // View schedule after booking 
         passenger.viewSchedule();
 
         // Passenger pays
