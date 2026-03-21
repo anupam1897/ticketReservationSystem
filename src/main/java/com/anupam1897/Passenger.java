@@ -9,6 +9,9 @@ public class Passenger {
     private String address;
     private int    passengerId;
 
+    public int    getAge()         { return age; }       
+    public String getAddress()     { return address; }
+
     private static int idCounter = 1;
     private List<Ticket> tickets = new ArrayList<>();
 
