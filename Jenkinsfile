@@ -3,6 +3,8 @@ pipeline {
 
     environment {
         SONAR_TOKEN = credentials('sonar-token')
+        IMAGE_NAME    = "ticket-reservation-system"
+        DOCKER_USER   = "anupam1897"
     }
 
     stages {
@@ -11,6 +13,29 @@ pipeline {
             steps {
                 echo 'Cloning repository from GitHub...'
                 git branch: 'main', url: 'https://github.com/anupam1897/ticketReservationSystem.git'
+                echo 'Repository cloned successfully!'
+            }
+        }
+
+        stage('Get Version') {
+            steps {
+                script {
+                    GIT_TAG = sh(
+                        script: "git describe --tags --abbrev=0 2>/dev/null || echo 'v1.0.0'",
+                        returnStdout: true
+                    ).trim()
+
+                    GIT_HASH = sh(
+                        script: "git rev-parse --short=7 HEAD",
+                        returnStdout: true
+                    ).trim()
+
+                    IMAGE_TAG = "${GIT_TAG}-${GIT_HASH}"
+
+                    echo "Git Tag   : ${GIT_TAG}"
+                    echo "Git Hash  : ${GIT_HASH}"
+                    echo "Image Tag : ${IMAGE_TAG}"
+                }
             }
         }
 
@@ -18,6 +43,7 @@ pipeline {
             steps {
                 echo 'Compiling source code...'
                 sh 'mvn clean compile'
+                echo 'Build successful!'
             }
         }
 
@@ -25,10 +51,14 @@ pipeline {
             steps {
                 echo 'Running JUnit tests...'
                 sh 'mvn test'
+                echo 'All test passed successfully!'
             }
             post {
                 always {
                     junit '**/target/surefire-reports/*.xml'
+                    echo 'JUnit test results published to Jenkins.'
+                    echo 'Test execution completed!'
+                    echo 'Check the test results in Jenkins for details.'
                 }
             }
         }
@@ -37,6 +67,9 @@ pipeline {
             steps {
                 echo 'Generating JaCoCo coverage report...'
                 sh 'mvn jacoco:report'
+                echo 'Code coverage report generated successfully!'
+                echo 'Coverage report available at: target/site/jacoco/index.html'
+
             }
         }
 
@@ -57,6 +90,10 @@ pipeline {
             steps {
                 echo 'Packaging application into JAR...'
                 sh 'mvn package -DskipTests'
+                echo 'Packaging completed successfully!'
+                echo 'Generated JAR file:'
+                sh 'ls -l target/*.jar'
+                echo 'JAR file is ready for deployment!'
             }
         }
 
@@ -67,18 +104,84 @@ pipeline {
             }
         }
 
+        stage('Docker Build') {
+            steps {
+                script {
+                    sh """
+                        docker build \
+                          -t ${IMAGE_NAME}:latest \
+                          -t ${IMAGE_NAME}:${GIT_TAG} \
+                          -t ${IMAGE_NAME}:${IMAGE_TAG} \
+                          .
+                    """
+                    echo "Docker image built with tags:"
+                    echo "  → ${IMAGE_NAME}:latest"
+                    echo "  → ${IMAGE_NAME}:${GIT_TAG}"
+                    echo "  → ${IMAGE_NAME}:${IMAGE_TAG}"
+                }
+            }
+        }
+
+        stage('Docker Push') {
+            steps {
+                script {
+                    withCredentials([usernamePassword(
+                        credentialsId: 'dockerhub-credentials',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )]) {
+                        sh "docker login -u ${DOCKER_USER} -p ${DOCKER_PASS}"
+
+                        sh """
+                            docker tag ${IMAGE_NAME}:latest        ${DOCKER_USER}/${IMAGE_NAME}:latest
+                            docker tag ${IMAGE_NAME}:${GIT_TAG}    ${DOCKER_USER}/${IMAGE_NAME}:${GIT_TAG}
+                            docker tag ${IMAGE_NAME}:${IMAGE_TAG}  ${DOCKER_USER}/${IMAGE_NAME}:${IMAGE_TAG}
+
+                            docker push ${DOCKER_USER}/${IMAGE_NAME}:latest
+                            docker push ${DOCKER_USER}/${IMAGE_NAME}:${GIT_TAG}
+                            docker push ${DOCKER_USER}/${IMAGE_NAME}:${IMAGE_TAG}
+                        """
+                    }
+                }
+            }
+        }
+
+        // stage('Deploy') {
+        //     steps {
+        //         script {
+        //             sh """
+        //                 docker stop ticket-reservation || true
+        //                 docker rm   ticket-reservation || true
+
+        //                 docker run -d \
+        //                   --name ticket-reservation \
+        //                   --restart always \
+        //                   ${DOCKER_USER}/${IMAGE_NAME}:${IMAGE_TAG}
+        //             """
+        //             echo "Deployed: ${DOCKER_USER}/${IMAGE_NAME}:${IMAGE_TAG}"
+        //         }
+        //     }
+        // }
     }
 
     post {
-        always {
-            echo 'Cleaning up workspace...'
-            cleanWs()
-        }
         success {
-            echo 'Pipeline finished successfully!'
+            echo """
+            ✅ Pipeline SUCCESS
+            ─────────────────────────────
+            Git Tag   : ${GIT_TAG}
+            Git Hash  : ${GIT_HASH}
+            Image Tag : ${IMAGE_TAG}
+            Image     : ${DOCKER_USER}/${IMAGE_NAME}:${IMAGE_TAG}
+            ─────────────────────────────
+            """
         }
         failure {
-            echo 'Pipeline failed. Check the console output above.'
+            echo "Pipeline FAILED — check logs above"
+        }
+        always {
+            sh "docker logout"
+            echo "Workspace cleaned up"
         }
     }
 }
