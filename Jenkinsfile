@@ -5,7 +5,7 @@ pipeline {
         SONAR_TOKEN = credentials('sonar-token')
         IMAGE_NAME    = "ticket-reservation-system"
         DOCKER_USER   = "anupam1897"
-        // DOCKER_HOST   = "tcp://localhost:2375"
+        // DOCKER_HOST   = "tcp://localhost:2375" // Use this if Docker is running in a separate container and exposing the API over TCP
         DOCKER_HOST = "unix:///var/run/docker.sock"
     }
 
@@ -22,21 +22,21 @@ pipeline {
         stage('Get Version') {
             steps {
                 script {
-                    GIT_TAG = sh(
+                    env.GIT_TAG = sh(
                         script: "git describe --tags --abbrev=0 2>/dev/null || echo 'v1.0.0'",
                         returnStdout: true
                     ).trim()
 
-                    GIT_HASH = sh(
+                    env.GIT_HASH = sh(
                         script: "git rev-parse --short=7 HEAD",
                         returnStdout: true
                     ).trim()
 
-                    IMAGE_TAG = "${GIT_TAG}-${GIT_HASH}"
+                    env.IMAGE_TAG = "${env.GIT_TAG}-${env.GIT_HASH}"
 
-                    echo "Git Tag   : ${GIT_TAG}"
-                    echo "Git Hash  : ${GIT_HASH}"
-                    echo "Image Tag : ${IMAGE_TAG}"
+                    echo "Git Tag   : ${env.GIT_TAG}"
+                    echo "Git Hash  : ${env.GIT_HASH}"
+                    echo "Image Tag : ${env.IMAGE_TAG}"
                 }
             }
         }
@@ -132,9 +132,10 @@ pipeline {
                         usernameVariable: 'DOCKER_USER',
                         passwordVariable: 'DOCKER_PASS'
                     )]) {
-                        sh "docker login -u ${DOCKER_USER} -p ${DOCKER_PASS}"
-
+                        // sh "docker login -u ${DOCKER_USER} -p ${DOCKER_PASS}" // This is less secure because the password may appear in logs or process lists
+                        // sh "echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin" // This is more secure because it avoids exposing the password in logs or process lists
                         sh """
+                            echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
                             docker tag ${IMAGE_NAME}:latest        ${DOCKER_USER}/${IMAGE_NAME}:latest  
                             docker tag ${IMAGE_NAME}:${GIT_TAG}    ${DOCKER_USER}/${IMAGE_NAME}:${GIT_TAG} 
                             docker tag ${IMAGE_NAME}:${IMAGE_TAG}  ${DOCKER_USER}/${IMAGE_NAME}:${IMAGE_TAG} 
