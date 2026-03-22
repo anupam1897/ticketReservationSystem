@@ -5,7 +5,8 @@ pipeline {
         SONAR_TOKEN = credentials('sonar-token')
         IMAGE_NAME    = "ticket-reservation-system"
         DOCKER_USER   = "anupam1897"
-        DOCKER_HOST   = "tcp://localhost:2375"
+        // DOCKER_HOST   = "tcp://localhost:2375"
+        DOCKER_HOST = "unix:///var/run/docker.sock"
     }
 
     stages {
