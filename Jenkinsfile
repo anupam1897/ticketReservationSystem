@@ -5,6 +5,7 @@ pipeline {
         SONAR_TOKEN = credentials('sonar-token')
         IMAGE_NAME    = "ticket-reservation-system"
         DOCKER_USER   = "anupam1897"
+        DOCKER_HOST   = "tcp://localhost:2375"
     }
 
     stages {
@@ -136,7 +137,7 @@ pipeline {
                             docker tag ${IMAGE_NAME}:latest        ${DOCKER_USER}/${IMAGE_NAME}:latest  
                             docker tag ${IMAGE_NAME}:${GIT_TAG}    ${DOCKER_USER}/${IMAGE_NAME}:${GIT_TAG} 
                             docker tag ${IMAGE_NAME}:${IMAGE_TAG}  ${DOCKER_USER}/${IMAGE_NAME}:${IMAGE_TAG} 
-                            
+
                             docker push ${DOCKER_USER}/${IMAGE_NAME}:latest   // used in dev/testing
                             docker push ${DOCKER_USER}/${IMAGE_NAME}:${GIT_TAG}   //   Release version — used for rollback
                             docker push ${DOCKER_USER}/${IMAGE_NAME}:${IMAGE_TAG}   // used for traceability and debugging
