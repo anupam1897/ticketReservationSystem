@@ -133,13 +133,13 @@ pipeline {
                         sh "docker login -u ${DOCKER_USER} -p ${DOCKER_PASS}"
 
                         sh """
-                            docker tag ${IMAGE_NAME}:latest        ${DOCKER_USER}/${IMAGE_NAME}:latest
-                            docker tag ${IMAGE_NAME}:${GIT_TAG}    ${DOCKER_USER}/${IMAGE_NAME}:${GIT_TAG}
-                            docker tag ${IMAGE_NAME}:${IMAGE_TAG}  ${DOCKER_USER}/${IMAGE_NAME}:${IMAGE_TAG}
-
-                            docker push ${DOCKER_USER}/${IMAGE_NAME}:latest
-                            docker push ${DOCKER_USER}/${IMAGE_NAME}:${GIT_TAG}
-                            docker push ${DOCKER_USER}/${IMAGE_NAME}:${IMAGE_TAG}
+                            docker tag ${IMAGE_NAME}:latest        ${DOCKER_USER}/${IMAGE_NAME}:latest  
+                            docker tag ${IMAGE_NAME}:${GIT_TAG}    ${DOCKER_USER}/${IMAGE_NAME}:${GIT_TAG} 
+                            docker tag ${IMAGE_NAME}:${IMAGE_TAG}  ${DOCKER_USER}/${IMAGE_NAME}:${IMAGE_TAG} 
+                            
+                            docker push ${DOCKER_USER}/${IMAGE_NAME}:latest   // used in dev/testing
+                            docker push ${DOCKER_USER}/${IMAGE_NAME}:${GIT_TAG}   //   Release version — used for rollback
+                            docker push ${DOCKER_USER}/${IMAGE_NAME}:${IMAGE_TAG}   // used for traceability and debugging
                         """
                     }
                 }
