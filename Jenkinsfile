@@ -3,10 +3,15 @@ pipeline {
 
     environment {
         SONAR_TOKEN = credentials('sonar-token')
-        IMAGE_NAME    = "ticket-reservation-system"
-        DOCKER_USER   = "anupam1897"
-        // DOCKER_HOST   = "tcp://localhost:2375" // Use this if Docker is running in a separate container and exposing the API over TCP
+        IMAGE_NAME  = "ticket-reservation-system"
+        DOCKER_USER = "anupam1897"
         DOCKER_HOST = "unix:///var/run/docker.sock"
+        RENDER_SERVICE_ID = "srv-d72j3vq4d50c738qmej0"
+        DB_HOST = "aws-1-ap-northeast-1.pooler.supabase.com"
+        DB_PORT = "6543"
+        DB_NAME = "postgres"
+        DB_USER = "postgres.ipkraldnreovycucpcyk"
+        SERVER_PORT = "8080"
     }
 
     stages {
@@ -33,10 +38,12 @@ pipeline {
                     ).trim()
 
                     env.IMAGE_TAG = "${env.GIT_TAG}-${env.GIT_HASH}"
+                    env.FULL_IMAGE = "${DOCKER_USER}/${IMAGE_NAME}:${IMAGE_TAG}"
 
                     echo "Git Tag   : ${env.GIT_TAG}"
                     echo "Git Hash  : ${env.GIT_HASH}"
                     echo "Image Tag : ${env.IMAGE_TAG}"
+                    echo "Full Image: ${env.FULL_IMAGE}"
                 }
             }
         }
@@ -53,31 +60,26 @@ pipeline {
             steps {
                 echo 'Running JUnit tests...'
                 sh 'mvn test'
-                echo 'All test passed successfully!'
+                echo 'All tests passed successfully!'
             }
             post {
                 always {
                     junit '**/target/surefire-reports/*.xml'
-                    echo 'JUnit test results published to Jenkins.'
-                    echo 'Test execution completed!'
-                    echo 'Check the test results in Jenkins for details.'
+                    echo 'JUnit results published.'
                 }
             }
         }
 
         stage('Code Coverage') {
             steps {
-                echo 'Generating JaCoCo coverage report...'
+                echo 'Generating JaCoCo report...'
                 sh 'mvn jacoco:report'
-                echo 'Code coverage report generated successfully!'
-                echo 'Coverage report available at: target/site/jacoco/index.html'
-
             }
         }
 
         stage('SonarQube Analysis') {
             steps {
-                echo 'Running SonarQube code analysis...'
+                echo 'Running SonarQube analysis...'
                 sh '''
                     mvn sonar:sonar \
                         -Dsonar.projectKey=ticket-reservation-system \
@@ -90,18 +92,14 @@ pipeline {
 
         stage('Package') {
             steps {
-                echo 'Packaging application into JAR...'
+                echo 'Packaging JAR...'
                 sh 'mvn package -DskipTests'
-                echo 'Packaging completed successfully!'
-                echo 'Generated JAR file:'
                 sh 'ls -l target/*.jar'
-                echo 'JAR file is ready for deployment!'
             }
         }
 
         stage('Archive') {
             steps {
-                echo 'Archiving JAR artifact...'
                 archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
             }
         }
@@ -116,10 +114,7 @@ pipeline {
                           -t ${IMAGE_NAME}:${IMAGE_TAG} \
                           .
                     """
-                    echo "Docker image built with tags:"
-                    echo "  → ${IMAGE_NAME}:latest"
-                    echo "  → ${IMAGE_NAME}:${GIT_TAG}"
-                    echo "  → ${IMAGE_NAME}:${IMAGE_TAG}"
+                    echo "Docker image built successfully"
                 }
             }
         }
@@ -132,59 +127,97 @@ pipeline {
                         usernameVariable: 'DOCKER_USER',
                         passwordVariable: 'DOCKER_PASS'
                     )]) {
-                        // sh "docker login -u ${DOCKER_USER} -p ${DOCKER_PASS}" // This is less secure because the password may appear in logs or process lists
-                        // sh "echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin" // This is more secure because it avoids exposing the password in logs or process lists
-                        sh """
-                            echo '$DOCKER_PASS' | docker login -u $DOCKER_USER --password-stdin
-                            docker tag ${IMAGE_NAME}:latest        ${DOCKER_USER}/${IMAGE_NAME}:latest  
-                            docker tag ${IMAGE_NAME}:${GIT_TAG}    ${DOCKER_USER}/${IMAGE_NAME}:${GIT_TAG} 
-                            docker tag ${IMAGE_NAME}:${IMAGE_TAG}  ${DOCKER_USER}/${IMAGE_NAME}:${IMAGE_TAG} 
 
-                            docker push ${DOCKER_USER}/${IMAGE_NAME}:latest   
-                            docker push ${DOCKER_USER}/${IMAGE_NAME}:${GIT_TAG}   
-                            docker push ${DOCKER_USER}/${IMAGE_NAME}:${IMAGE_TAG} 
+                        sh """
+                            echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+
+                            docker tag ${IMAGE_NAME}:latest        ${DOCKER_USER}/${IMAGE_NAME}:latest
+                            docker tag ${IMAGE_NAME}:${GIT_TAG}    ${DOCKER_USER}/${IMAGE_NAME}:${GIT_TAG}
+                            docker tag ${IMAGE_NAME}:${IMAGE_TAG}  ${DOCKER_USER}/${IMAGE_NAME}:${IMAGE_TAG}
+
+                            docker push ${DOCKER_USER}/${IMAGE_NAME}:latest
+                            docker push ${DOCKER_USER}/${IMAGE_NAME}:${GIT_TAG}
+                            docker push ${DOCKER_USER}/${IMAGE_NAME}:${IMAGE_TAG}
                         """
                     }
                 }
             }
         }
 
-        // stage('Deploy') {
-        //     steps {
-        //         script {
-        //             sh """
-        //                 docker stop ticket-reservation || true
-        //                 docker rm   ticket-reservation || true
+        stage('Set Render Environment Variables') {
+            steps {
+                script {
+                    withCredentials([
+                        string(credentialsId: 'RENDER_API_KEY', variable: 'RENDER_API_KEY'),
+                        string(credentialsId: 'DB_PASSWORD', variable: 'DB_PASSWORD')
+                    ]) {
 
-        //                 docker run -d \
-        //                   --name ticket-reservation \
-        //                   --restart always \
-        //                   ${DOCKER_USER}/${IMAGE_NAME}:${IMAGE_TAG}
-        //             """
-        //             echo "Deployed: ${DOCKER_USER}/${IMAGE_NAME}:${IMAGE_TAG}"
-        //         }
-        //     }
-        // }
+                        def payload = """
+                        {
+                        "envVars": [
+                            {"key": "DB_HOST", "value": "${env.DB_HOST}"},
+                            {"key": "DB_PORT", "value": "${env.DB_PORT}"},
+                            {"key": "DB_NAME", "value": "${env.DB_NAME}"},
+                            {"key": "DB_USER", "value": "${env.DB_USER}"},
+                            {"key": "DB_PASSWORD", "value": "${DB_PASSWORD}"},
+                            {"key": "SERVER_PORT", "value": "${env.SERVER_PORT}"}
+                        ]
+                        }
+                        """
+
+                        sh """
+                        curl -X PUT https://api.render.com/v1/services/${RENDER_SERVICE_ID}/env-vars \
+                        -H "Authorization: Bearer ${RENDER_API_KEY}" \
+                        -H "Content-Type: application/json" \
+                        -d '${payload}'
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Deploy to Render') {
+            steps {
+                script {
+                    withCredentials([
+                        string(credentialsId: 'RENDER_API_KEY', variable: 'RENDER_API_KEY'),
+                        string(credentialsId: 'DB_PASSWORD', variable: 'DB_PASSWORD')
+                    ]) {
+
+                        sh """
+                        curl -X POST https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys \
+                          -H "Authorization: Bearer ${RENDER_API_KEY}" \
+                          -H "Content-Type: application/json" \
+                          -d '{
+                            "imageUrl": "${FULL_IMAGE}"
+                          }'
+                        """
+                    }
+                }
+            }
+        }
     }
 
     post {
         success {
             echo """
-            ✅ Pipeline SUCCESS
+            PIPELINE SUCCESS
             ─────────────────────────────
             Git Tag   : ${GIT_TAG}
             Git Hash  : ${GIT_HASH}
             Image Tag : ${IMAGE_TAG}
-            Image     : ${DOCKER_USER}/${IMAGE_NAME}:${IMAGE_TAG}
+            Image     : ${FULL_IMAGE}
             ─────────────────────────────
             """
         }
+
         failure {
-            echo "Pipeline FAILED — check logs above"
+            echo "PIPELINE FAILED — check logs"
         }
+
         always {
-            sh "docker logout"
-            echo "Workspace cleaned up"
+            sh "docker logout || true"
+            echo "Cleanup complete"
         }
     }
 }
