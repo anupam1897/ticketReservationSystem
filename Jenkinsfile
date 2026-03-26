@@ -12,6 +12,7 @@ pipeline {
         DB_NAME = "postgres"
         DB_USER = "postgres.ipkraldnreovycucpcyk"
         SERVER_PORT = "8080"
+        TEST_VAR = "TEST_VALUE"
     }
 
     stages {
@@ -160,7 +161,8 @@ pipeline {
                             {"key": "DB_NAME", "value": "${env.DB_NAME}"},
                             {"key": "DB_USER", "value": "${env.DB_USER}"},
                             {"key": "DB_PASSWORD", "value": "${DB_PASSWORD}"},
-                            {"key": "SERVER_PORT", "value": "${env.SERVER_PORT}"}
+                            {"key": "SERVER_PORT", "value": "${env.SERVER_PORT}"},
+                            {"key": "TEST_VAR", "value": "${env.TEST_VAR}"
                         ]
                         }
                         """
@@ -189,7 +191,7 @@ pipeline {
                           -H "Authorization: Bearer ${RENDER_API_KEY}" \
                           -H "Content-Type: application/json" \
                           -d '{
-                            "imageUrl": "${FULL_IMAGE}"
+                            "imageUrl": "docker.io/${FULL_IMAGE}"
                           }'
                         """
                     }
